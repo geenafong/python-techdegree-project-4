@@ -13,11 +13,11 @@ db = SqliteDatabase('inventory.db')
 
 
 class Product(Model):
-    product_id = IntegerField(primary_key=True)
-    product_name = CharField(max_length=255)
+    product_id = IntegerField(primary_key=True, unique=True)
+    product_name = CharField(max_length=255, unique=True)
     product_price = IntegerField(null=False)
     product_quantity = IntegerField()
-    date_updated = DateField()
+    date_updated = DateTimeField()
 
     class Meta:
         database = db
@@ -36,11 +36,14 @@ def view_product():
     product_id_input = int(input("What is the Product ID? "))
     if product_id_input:
         products = products.where(Product.product_id ==  product_id_input)
-    for product in products:
-        product_price = [price for price in str(product.product_price)]
-        product_price.insert(-2, ".")
-        product_price = "".join(product_price)
-        print(f'\nProduct Name: {product.product_name}, \nProduct Price: {product_price}, \nProduct Quantity: {product.product_quantity}, \nLast Updated: {product.date_updated}\n')
+    if products:
+        for product in products:
+            product_price = [price for price in str(product.product_price)]
+            product_price.insert(-2, ".")
+            product_price = "".join(product_price)
+            print(f'\nProduct Name: {product.product_name}, \nProduct Price: {product_price}, \nProduct Quantity: {product.product_quantity}, \nLast Updated: {product.date_updated}\n')
+    else:
+        print("A product id with the number you entered does not exist.")
 
 def add_product():
     """Add new product"""
@@ -57,14 +60,29 @@ def add_product():
     except ValueError:
         print("Product price and quantity must be an integer.")
         add_product()
+    except IntegrityError:
+        update_product_date = Product.select().where(Product.product_name == product_name).get().date_updated
+        if update_product_date <= date_added:
+            Product.update(product_name=product_name, product_price=product_price, product_quantity=product_quantity, date_updated=date_added).where(Product.product_name == product_name).execute()
+            print("Existing product price updated")
 
 def backup_database():
     """Backup database"""
     with open('backup.csv', 'a') as csvfile:
-        field_names = ['product_id', 'product_name', 'product_quantity', 'date_updated']
-        product_writer = csv.DictWriter(csvfile, field_names=field_names)
+        fieldnames = ['product_id', 'product_name', 'product_price', 'product_quantity', 'date_updated']
+        product_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        product_writer.writeheader()
+        products = Product.select().order_by(Product.product_id.asc()) 
+        for product in products:
+            product_writer.writerow({
+                'product_id': product.product_id,
+                'product_name': product.product_name,
+                'product_quantity': product.product_quantity,
+                'product_price': product.product_price,
+                'date_updated': product.date_updated,
+            })
+        print("Backup completed successfully to backup.csv")
 
-    
 def create_and_add_products_from_csv():
     with open("inventory.csv", "rt") as file:
         reader = csv.DictReader(file, delimiter=',')
@@ -80,6 +98,9 @@ def create_and_add_products_from_csv():
         if not Product.select().where(Product.product_name == product_name).exists():
             add_products = Product(product_name=product_name, product_quantity=product_quantity, product_price=product_price, date_updated=date)
             add_products.save()
+        if Product.select().where(Product.product_name == product_name).exists():
+            if date >= Product.date_updated:
+                Product.update(product_name=product_name, product_price=product_price, product_quantity=product_quantity, date_updated=date).where(Product.product_name == product_name).execute()
 
 menu = OrderedDict([
     ('v', view_product),
@@ -87,17 +108,22 @@ menu = OrderedDict([
     ('b', backup_database),
 ])
 
-
-def menu_loop():        
-    choice = None
-    while choice != 'q':
-        print("Enter 'q' to quit")
-        for key, value in menu.items():
-            print(f'{key}) {value.__doc__}')
-        choice = input('Action: ').lower().strip()
-        if choice in menu:
-            clear()
-            menu[choice]()
+def menu_loop():
+    try:    
+        choice = None
+        while choice != 'q':
+            print("Enter 'q' to quit")
+            for key, value in menu.items():
+                print(f'{key}) {value.__doc__}')
+            choice = input('Action: ').lower().strip()
+            if choice in menu:
+                clear()
+                menu[choice]()
+            if choice == 'q':
+                print("Thanks for looking at our inventory.")
+    except KeyError:
+        print("\nPlease choose a valid menu option: v, a, or b\n")
+        menu_loop()
 
 if __name__ == '__main__':
     initialize()
