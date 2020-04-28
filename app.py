@@ -3,7 +3,6 @@
 import csv
 from datetime import datetime
 from collections import OrderedDict
-import sys
 import os
 
 from peewee import *
@@ -116,7 +115,7 @@ menu = OrderedDict([
 
 def menu_loop():
     try:
-        print("Welcome to our product inventory!") 
+        print("\nWelcome to our product inventory!\n") 
         choice = None
         while choice != 'q':
             print("Enter 'q' to quit")
