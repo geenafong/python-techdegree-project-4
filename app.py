@@ -32,18 +32,22 @@ def clear():
 
 def view_product():
     """View details about existing product"""
-    products = Product.select().order_by(Product.product_id.asc()) 
-    product_id_input = int(input("What is the Product ID? "))
-    if product_id_input:
-        products = products.where(Product.product_id ==  product_id_input)
-    if products:
-        for product in products:
-            product_price = [price for price in str(product.product_price)]
-            product_price.insert(-2, ".")
-            product_price = "".join(product_price)
-            print(f'\nProduct Name: {product.product_name}, \nProduct Price: {product_price}, \nProduct Quantity: {product.product_quantity}, \nLast Updated: {product.date_updated}\n')
-    else:
-        print("A product id with the number you entered does not exist.")
+    try:
+        products = Product.select().order_by(Product.product_id.asc()) 
+        product_id_input = int(input("What is the Product ID? "))
+        if product_id_input:
+            products = products.where(Product.product_id ==  product_id_input)
+        if products:
+            for product in products:
+                product_price = [price for price in str(product.product_price)]
+                product_price.insert(-2, ".")
+                product_price = "".join(product_price)
+                print(f'\nProduct Name: {product.product_name}, \nProduct Price: {product_price}, \nProduct Quantity: {product.product_quantity}, \nLast Updated: {product.date_updated}\n')
+        else:
+            print(f"A product id with the number you entered does not exist. We only have product id's from 1 to {Product.select().count()}.")
+    except ValueError:
+        print("Product price and quantity must be an integer.")
+        view_product()
 
 def add_product():
     """Add new product"""
@@ -52,6 +56,8 @@ def add_product():
         product_price = input("Product Price(example: 4.50): ")
         product_quantity = input("Product Quantity: ")
         date_added = datetime.now()
+        if isinstance(product_quantity, str):
+            int(product_quantity)
         if isinstance(product_price, str):
             product_price = int(''.join(product for product in product_price if product.isdigit()))
         if input('Save entry? [Yn] ').lower() != 'n':
@@ -109,7 +115,8 @@ menu = OrderedDict([
 ])
 
 def menu_loop():
-    try:    
+    try:
+        print("Welcome to our product inventory!") 
         choice = None
         while choice != 'q':
             print("Enter 'q' to quit")
